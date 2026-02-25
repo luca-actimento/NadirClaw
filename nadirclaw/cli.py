@@ -207,6 +207,17 @@ def report(since, model, fmt, export_path):
 
 
 @main.command()
+@click.option("--refresh", default=2.0, type=float, help="Refresh interval in seconds")
+def dashboard(refresh):
+    """Live terminal dashboard showing real-time routing stats."""
+    from nadirclaw.dashboard import run_dashboard
+    from nadirclaw.settings import settings
+
+    log_path = settings.LOG_DIR / "requests.jsonl"
+    run_dashboard(log_path, refresh=refresh)
+
+
+@main.command()
 @click.option("--since", default=None, help="Time filter: '24h', '7d', '2025-02-01'")
 @click.option("--baseline", default=None, help="Model to compare against (default: most expensive in logs)")
 @click.option("--format", "fmt", default="text", type=click.Choice(["text", "json"]), help="Output format")

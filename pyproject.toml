@@ -56,6 +56,9 @@ dev = [
     "pytest-asyncio>=0.21",
     "httpx",
 ]
+dashboard = [
+    "rich>=13.0",
+]
 telemetry = [
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
