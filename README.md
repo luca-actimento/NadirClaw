@@ -70,6 +70,7 @@ That's it. NadirClaw starts on `http://localhost:8856` with sensible defaults (G
 - **Raw logging** — optional `--log-raw` flag to capture full request/response content for debugging and replay
 - **OpenTelemetry tracing** — optional distributed tracing with GenAI semantic conventions (`pip install nadirclaw[telemetry]`)
 - **Cost savings calculator** — `nadirclaw savings` shows exactly how much money you've saved, with monthly projections
+- **Live dashboard** — `nadirclaw dashboard` shows real-time routing stats, cost savings, and tier distribution in your terminal
 - **GitHub Action** — [`doramirdor/nadirclaw-action`](https://github.com/doramirdor/nadirclaw-action) for CI/CD pipelines
 
 ## Prerequisites
@@ -489,6 +490,7 @@ nadirclaw report             # Show a summary report of request logs
 nadirclaw report --since 24h # Report for the last 24 hours
 nadirclaw savings            # Show how much money NadirClaw saved you
 nadirclaw savings --since 7d # Savings for the last 7 days
+nadirclaw dashboard          # Live terminal dashboard with real-time stats
 nadirclaw status             # Show config, credentials, and server status
 nadirclaw auth add           # Add an API key for any provider
 nadirclaw auth status        # Show configured credentials (masked)
