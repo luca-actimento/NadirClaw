@@ -352,6 +352,47 @@ nadirclaw auth openai login
 
 This delegates to the Codex CLI for the OAuth flow and stores the credentials in `~/.nadirclaw/credentials.json`. Tokens are automatically refreshed when they expire.
 
+## Usage with Claude Code
+
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's CLI coding agent. NadirClaw works as a drop-in proxy that intercepts Claude Code's API calls and routes simple prompts to cheaper models.
+
+```bash
+# Point Claude Code at NadirClaw
+export ANTHROPIC_BASE_URL=http://localhost:8856/v1
+export ANTHROPIC_API_KEY=local
+
+# Start NadirClaw, then use Claude Code normally
+nadirclaw serve --verbose
+claude
+```
+
+You can also wrap this in a shell alias:
+
+```bash
+alias claude-routed='ANTHROPIC_BASE_URL=http://localhost:8856/v1 ANTHROPIC_API_KEY=local claude'
+```
+
+### Authentication
+
+Use your existing Claude subscription instead of a separate API key:
+
+```bash
+# Login with your Anthropic account (OAuth, opens browser)
+nadirclaw auth anthropic login
+
+# Or store a Claude subscription token directly
+nadirclaw auth setup-token
+```
+
+### What happens
+
+Claude Code sends every request to Anthropic's API. With NadirClaw in front, each prompt is classified in ~10ms:
+
+- Simple prompts (reading files, quick questions, "what does this function do?") get routed to a cheap model like Gemini Flash
+- Complex prompts (refactoring, architecture, multi-file changes) stay on Claude
+
+Streaming works as expected. In typical Claude Code usage, 40-70% of prompts are simple enough to route to a cheaper model, which translates directly to cost savings.
+
 ## Usage with Any OpenAI-Compatible Tool
 
 NadirClaw exposes a standard OpenAI-compatible API. Point any tool at it:
