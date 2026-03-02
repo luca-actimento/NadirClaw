@@ -789,7 +789,17 @@ async def _dispatch_model(
 
     Raises RateLimitExhausted if the model is rate-limited after retries.
     """
+    from nadirclaw.rate_limit import get_model_rate_limiter
     from nadirclaw.telemetry import trace_span
+
+    # Check per-model rate limit before making the call
+    limiter = get_model_rate_limiter()
+    retry_after = limiter.check(model)
+    if retry_after is not None:
+        logger.warning(
+            "Per-model rate limit hit for %s (retry in %ds)", model, retry_after,
+        )
+        raise RateLimitExhausted(model=model, retry_after=retry_after)
 
     with trace_span("dispatch_model", {"gen_ai.request.model": model, "gen_ai.system": provider or ""}):
         if provider == "google":
@@ -1531,6 +1541,17 @@ async def _dispatch_model_stream(
     provider: str | None,
 ):
     """Route to the correct streaming backend. Yields (delta, usage, finish_reason) tuples."""
+    from nadirclaw.rate_limit import get_model_rate_limiter
+
+    # Check per-model rate limit before streaming
+    limiter = get_model_rate_limiter()
+    retry_after = limiter.check(model)
+    if retry_after is not None:
+        logger.warning(
+            "Per-model rate limit hit for %s (streaming, retry in %ds)", model, retry_after,
+        )
+        raise RateLimitExhausted(model=model, retry_after=retry_after)
+
     if provider == "google":
         async_gen = None
         # _stream_gemini is a sync generator; wrap it
@@ -1737,6 +1758,15 @@ async def get_budget(
     """Get current spend and budget status."""
     from nadirclaw.budget import get_budget_tracker
     return get_budget_tracker().get_status()
+
+
+@app.get("/v1/rate-limits")
+async def get_rate_limits(
+    current_user: UserSession = Depends(validate_local_auth),
+) -> Dict[str, Any]:
+    """Get current per-model rate limit status."""
+    from nadirclaw.rate_limit import get_model_rate_limiter
+    return get_model_rate_limiter().get_status()
 
 
 @app.get("/v1/models")

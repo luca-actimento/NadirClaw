@@ -797,6 +797,8 @@ NadirClaw uses a binary complexity classifier based on sentence embeddings:
 
 6. **Fallback chains**: If the selected model fails (429 rate limit, 5xx error, or timeout), NadirClaw cascades through a configurable fallback chain. Set `NADIRCLAW_FALLBACK_CHAIN=gpt-4.1,claude-sonnet-4-5-20250929,gemini-2.5-flash` to define the order. Default chain uses all your configured tier models.
 
+7. **Per-model rate limiting**: Protect against runaway costs and provider quota exhaustion with configurable RPM limits per model. When a model hits its limit, NadirClaw automatically triggers the fallback chain — no failed requests. Configure via `NADIRCLAW_MODEL_RATE_LIMITS=gemini-3-flash-preview=30,gpt-4.1=60` or set a blanket default with `NADIRCLAW_DEFAULT_MODEL_RPM=120`. Monitor usage in real-time at `/v1/rate-limits`.
+
 ### Why This Works
 
 The key insight: **most prompts don't need the most expensive model.**
@@ -900,6 +902,7 @@ Auth is disabled by default (local-only). Set `NADIRCLAW_AUTH_TOKEN` to require 
 | `/v1/classify` | POST | Classify a prompt without calling an LLM |
 | `/v1/classify/batch` | POST | Classify multiple prompts at once |
 | `/v1/models` | GET | List available models |
+| `/v1/rate-limits` | GET | Per-model rate limit status (current RPM, remaining, limits) |
 | `/v1/logs` | GET | View recent request logs |
 | `/metrics` | GET | Prometheus metrics (request counts, latency histograms, token/cost totals, cache hits, fallbacks) |
 | `/health` | GET | Health check (no auth required) |
@@ -918,6 +921,8 @@ Auth is disabled by default (local-only). Set `NADIRCLAW_AUTH_TOKEN` to require 
 | `NADIRCLAW_BUDGET_WARN_THRESHOLD` | `0.8` | Alert when spend reaches this fraction of budget |
 | `NADIRCLAW_BUDGET_WEBHOOK_URL` | *(none)* | Webhook URL — receives POST with JSON alert payload |
 | `NADIRCLAW_BUDGET_STDOUT_ALERTS` | `false` | Print alerts to stdout (`true`/`1`/`yes` to enable) |
+| `NADIRCLAW_MODEL_RATE_LIMITS` | *(none)* | Per-model RPM limits, e.g. `gemini-3-flash-preview=30,gpt-4.1=60` |
+| `NADIRCLAW_DEFAULT_MODEL_RPM` | `0` (unlimited) | Default max requests/minute for any model not in `MODEL_RATE_LIMITS` |
 | `NADIRCLAW_AUTH_TOKEN` | *(empty — auth disabled)* | Set to require a bearer token |
 | `GEMINI_API_KEY` | -- | Google Gemini API key (also accepts `GOOGLE_API_KEY`) |
 | `ANTHROPIC_API_KEY` | -- | Anthropic API key |
@@ -996,6 +1001,7 @@ nadirclaw/
   routing.py         # Routing intelligence (agentic, reasoning, profiles, aliases, sessions)
   report.py          # Log parsing and report generation
   metrics.py         # Built-in Prometheus metrics (zero dependencies)
+  rate_limit.py      # Per-model rate limiting (sliding window, env-configurable)
   telemetry.py       # Optional OpenTelemetry integration (no-op without packages)
   auth.py            # Bearer token / API key authentication
   settings.py        # Environment-based configuration (reads ~/.nadirclaw/.env)

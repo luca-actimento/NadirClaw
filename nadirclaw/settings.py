@@ -114,6 +114,19 @@ class Settings:
         return chain
 
     @property
+    def MODEL_RATE_LIMITS(self) -> str:
+        """Per-model rate limits. Format: model=rpm,model2=rpm2."""
+        return os.getenv("NADIRCLAW_MODEL_RATE_LIMITS", "")
+
+    @property
+    def DEFAULT_MODEL_RPM(self) -> int:
+        """Default max requests/minute per model. 0 = unlimited."""
+        try:
+            return max(0, int(os.getenv("NADIRCLAW_DEFAULT_MODEL_RPM", "0")))
+        except ValueError:
+            return 0
+
+    @property
     def has_explicit_tiers(self) -> bool:
         """True if SIMPLE_MODEL and COMPLEX_MODEL are explicitly set via env."""
         return bool(
