@@ -768,15 +768,9 @@ async def _call_with_fallback(
             fallback_provider = detect_provider(fallback_model)
 
             try:
-                if fallback_provider == "google":
-                    response_data = await _call_gemini(
-                        fallback_model, request, fallback_provider,
-                        _retry_count=99,  # One shot, no retries
-                    )
-                else:
-                    response_data = await _call_litellm(
-                        fallback_model, request, fallback_provider,
-                    )
+                response_data = await _dispatch_model(
+                    fallback_model, request, fallback_provider,
+                )
                 analysis_info = {
                     **analysis_info,
                     "fallback_from": selected_model,

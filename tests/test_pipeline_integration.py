@@ -20,44 +20,46 @@ def client():
 
 
 # ---------------------------------------------------------------------------
-# Helper: build a mock LiteLLM response
+# Helper: mock _call_with_fallback to return the expected tuple
 # ---------------------------------------------------------------------------
 
-def _mock_litellm_response(content="Hello!", prompt_tokens=10, completion_tokens=5, finish_reason="stop", tool_calls=None):
-    """Build a mock object matching litellm.acompletion return shape."""
-    msg = MagicMock()
-    msg.content = content
-    msg.tool_calls = tool_calls
+def _make_fallback_mock(content="Hello!", prompt_tokens=10, completion_tokens=5,
+                        finish_reason="stop", tool_calls=None, tier="simple",
+                        strategy="smart-routing", confidence=0.9, model=None):
+    """Create an AsyncMock for _call_with_fallback that returns the correct tuple."""
+    async def side_effect(selected_model, request, provider, analysis_info):
+        response_data = {
+            "content": content,
+            "finish_reason": finish_reason,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+        if tool_calls:
+            response_data["tool_calls"] = tool_calls
 
-    choice = MagicMock()
-    choice.message = msg
-    choice.finish_reason = finish_reason
+        actual_model = model or selected_model
+        updated_info = {
+            **analysis_info,
+            "selected_model": actual_model,
+        }
+        return response_data, actual_model, updated_info
 
-    usage = MagicMock()
-    usage.prompt_tokens = prompt_tokens
-    usage.completion_tokens = completion_tokens
-
-    resp = MagicMock()
-    resp.choices = [choice]
-    resp.usage = usage
-    return resp
+    mock = AsyncMock(side_effect=side_effect)
+    return mock
 
 
 # ---------------------------------------------------------------------------
-# 1. Simple prompt → routed to simple model → response
+# 1. Simple prompt -> routed to simple model -> response
 # ---------------------------------------------------------------------------
 
 class TestSimplePromptPipeline:
     """A simple prompt should be classified as simple and routed to the cheap model."""
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_simple_prompt_routes_to_simple_model(self, mock_call, client):
-        mock_call.return_value = {
-            "content": "4",
-            "finish_reason": "stop",
-            "prompt_tokens": 10,
-            "completion_tokens": 2,
-        }
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_simple_prompt_routes_to_simple_model(self, mock_fallback, client):
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="4", prompt_tokens=10, completion_tokens=2,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "What is 2+2?"}],
@@ -75,15 +77,12 @@ class TestSimplePromptPipeline:
         routing = meta.get("routing", {})
         assert routing.get("tier") in ("simple", "free")
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_response_has_openai_shape(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_response_has_openai_shape(self, mock_fallback, client):
         """Response must be OpenAI-compatible."""
-        mock_call.return_value = {
-            "content": "Hi!",
-            "finish_reason": "stop",
-            "prompt_tokens": 5,
-            "completion_tokens": 3,
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Hi!", prompt_tokens=5, completion_tokens=3,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "Hello"}],
@@ -101,19 +100,17 @@ class TestSimplePromptPipeline:
 
 
 # ---------------------------------------------------------------------------
-# 2. Complex prompt → routed to complex model
+# 2. Complex prompt -> routed to complex model
 # ---------------------------------------------------------------------------
 
 class TestComplexPromptPipeline:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_complex_prompt_routes_to_complex_model(self, mock_call, client):
-        mock_call.return_value = {
-            "content": "Here is the distributed system design...",
-            "finish_reason": "stop",
-            "prompt_tokens": 50,
-            "completion_tokens": 200,
-        }
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_complex_prompt_routes_to_complex_model(self, mock_fallback, client):
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Here is the distributed system design...",
+            prompt_tokens=50, completion_tokens=200, tier="complex",
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [
@@ -131,7 +128,6 @@ class TestComplexPromptPipeline:
         data = resp.json()
         meta = data.get("nadirclaw_metadata", {})
         routing = meta.get("routing", {})
-        # Complex prompt should be classified as complex tier
         assert routing.get("tier") == "complex"
 
 
@@ -141,14 +137,12 @@ class TestComplexPromptPipeline:
 
 class TestDirectModelOverride:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_explicit_model_bypasses_classifier(self, mock_call, client):
-        mock_call.return_value = {
-            "content": "Response from explicit model",
-            "finish_reason": "stop",
-            "prompt_tokens": 10,
-            "completion_tokens": 10,
-        }
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_explicit_model_bypasses_classifier(self, mock_fallback, client):
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Response from explicit model",
+            prompt_tokens=10, completion_tokens=10, model="gpt-4o",
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "Hello"}],
@@ -169,14 +163,11 @@ class TestDirectModelOverride:
 
 class TestRoutingProfiles:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_eco_profile(self, mock_call, client):
-        mock_call.return_value = {
-            "content": "Eco response",
-            "finish_reason": "stop",
-            "prompt_tokens": 5,
-            "completion_tokens": 5,
-        }
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_eco_profile(self, mock_fallback, client):
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Eco response", prompt_tokens=5, completion_tokens=5,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "Complex question that would normally route to premium"}],
@@ -190,14 +181,11 @@ class TestRoutingProfiles:
         assert routing.get("strategy") == "profile:eco"
         assert routing.get("tier") == "simple"
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_premium_profile(self, mock_call, client):
-        mock_call.return_value = {
-            "content": "Premium response",
-            "finish_reason": "stop",
-            "prompt_tokens": 5,
-            "completion_tokens": 5,
-        }
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_premium_profile(self, mock_fallback, client):
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Premium response", prompt_tokens=5, completion_tokens=5,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "Simple question"}],
@@ -213,7 +201,7 @@ class TestRoutingProfiles:
 
 
 # ---------------------------------------------------------------------------
-# 5. Fallback chain — primary model fails, fallback succeeds
+# 5. Fallback chain -- primary model fails, fallback succeeds
 # ---------------------------------------------------------------------------
 
 class TestFallbackChain:
@@ -260,25 +248,21 @@ class TestFallbackChain:
 
 class TestToolCalling:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_tool_calls_preserved_in_response(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_tool_calls_preserved_in_response(self, mock_fallback, client):
         """Tool call responses from the LLM should be passed through."""
-        mock_call.return_value = {
-            "content": None,
-            "finish_reason": "tool_calls",
-            "prompt_tokens": 20,
-            "completion_tokens": 15,
-            "tool_calls": [
-                {
-                    "id": "call_abc123",
-                    "type": "function",
-                    "function": {
-                        "name": "get_weather",
-                        "arguments": '{"location": "NYC"}',
-                    },
-                }
-            ],
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content=None, finish_reason="tool_calls",
+            prompt_tokens=20, completion_tokens=15,
+            tool_calls=[{
+                "id": "call_abc123",
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "arguments": '{"location": "NYC"}',
+                },
+            }],
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "What's the weather in NYC?"}],
@@ -303,7 +287,7 @@ class TestToolCalling:
 
 
 # ---------------------------------------------------------------------------
-# 7. Input validation — oversized content
+# 7. Input validation -- oversized content
 # ---------------------------------------------------------------------------
 
 class TestInputValidation:
@@ -328,15 +312,12 @@ class TestInputValidation:
 
 class TestMultiTurnRouting:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_multi_turn_uses_last_user_message_for_classification(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_multi_turn_uses_last_user_message_for_classification(self, mock_fallback, client):
         """Classification should be based on the last user message."""
-        mock_call.return_value = {
-            "content": "42",
-            "finish_reason": "stop",
-            "prompt_tokens": 30,
-            "completion_tokens": 2,
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="42", prompt_tokens=30, completion_tokens=2,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [
@@ -361,15 +342,12 @@ class TestMultiTurnRouting:
 
 class TestBudgetIntegration:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_budget_endpoint_after_request(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_budget_endpoint_after_request(self, mock_fallback, client):
         """Budget should update after a completion request."""
-        mock_call.return_value = {
-            "content": "Test",
-            "finish_reason": "stop",
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Test", prompt_tokens=100, completion_tokens=50,
+        ).side_effect
 
         # Make a request
         client.post("/v1/chat/completions", json={
@@ -390,15 +368,12 @@ class TestBudgetIntegration:
 
 class TestStreamingPipeline:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_streaming_returns_sse(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_streaming_returns_sse(self, mock_fallback, client):
         """Streaming requests should return SSE-formatted chunks."""
-        mock_call.return_value = {
-            "content": "Streamed response",
-            "finish_reason": "stop",
-            "prompt_tokens": 10,
-            "completion_tokens": 5,
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Streamed response", prompt_tokens=10, completion_tokens=5,
+        ).side_effect
 
         resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": "Hello"}],
@@ -428,20 +403,17 @@ class TestStreamingPipeline:
 
 
 # ---------------------------------------------------------------------------
-# 11. Classify → completions consistency
+# 11. Classify -> completions consistency
 # ---------------------------------------------------------------------------
 
 class TestClassifyCompletionConsistency:
 
-    @patch("nadirclaw.server._call_litellm", new_callable=AsyncMock)
-    def test_classify_and_completion_agree_on_tier(self, mock_call, client):
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_classify_and_completion_agree_on_tier(self, mock_fallback, client):
         """The /v1/classify tier should match the actual routing tier."""
-        mock_call.return_value = {
-            "content": "Answer",
-            "finish_reason": "stop",
-            "prompt_tokens": 10,
-            "completion_tokens": 5,
-        }
+        mock_fallback.side_effect = _make_fallback_mock(
+            content="Answer", prompt_tokens=10, completion_tokens=5,
+        ).side_effect
 
         prompt = "What is 2+2?"
 
@@ -449,13 +421,13 @@ class TestClassifyCompletionConsistency:
         classify_resp = client.post("/v1/classify", json={"prompt": prompt})
         classify_tier = classify_resp.json()["classification"]["tier"]
 
-        # Complete (without session cache influence - use different messages)
+        # Complete
         completion_resp = client.post("/v1/chat/completions", json={
             "messages": [{"role": "user", "content": prompt}],
         })
-        completion_tier = completion_resp.json()["nadirclaw_metadata"]["routing"]["tier"]
+        data = completion_resp.json()
+        completion_tier = data["nadirclaw_metadata"]["routing"]["tier"]
 
-        # Both should agree (allowing for routing modifiers that may upgrade)
-        # At minimum, a simple classify should not become complex in completion
+        # Both should agree
         if classify_tier == "simple":
             assert completion_tier in ("simple", "free")
