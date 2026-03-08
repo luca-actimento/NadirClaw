@@ -20,38 +20,38 @@ logger = logging.getLogger("nadirclaw.routing")
 
 MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
     # Gemini
-    "gemini-3-flash-preview": {"context_window": 1_000_000, "cost_per_m_input": 0.50, "cost_per_m_output": 3.00},
-    "gemini-2.5-pro": {"context_window": 1_000_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00},
-    "gemini-2.5-flash": {"context_window": 1_000_000, "cost_per_m_input": 0.15, "cost_per_m_output": 0.60},
-    "gemini/gemini-3-flash-preview": {"context_window": 1_000_000, "cost_per_m_input": 0.50, "cost_per_m_output": 3.00},
-    "gemini/gemini-2.5-pro": {"context_window": 1_000_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00},
+    "gemini-3-flash-preview": {"context_window": 1_000_000, "cost_per_m_input": 0.50, "cost_per_m_output": 3.00, "has_vision": True},
+    "gemini-2.5-pro": {"context_window": 1_000_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00, "has_vision": True},
+    "gemini-2.5-flash": {"context_window": 1_000_000, "cost_per_m_input": 0.15, "cost_per_m_output": 0.60, "has_vision": True},
+    "gemini/gemini-3-flash-preview": {"context_window": 1_000_000, "cost_per_m_input": 0.50, "cost_per_m_output": 3.00, "has_vision": True},
+    "gemini/gemini-2.5-pro": {"context_window": 1_000_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00, "has_vision": True},
     # OpenAI
-    "gpt-4.1": {"context_window": 1_047_576, "cost_per_m_input": 2.00, "cost_per_m_output": 8.00},
-    "gpt-4.1-mini": {"context_window": 1_047_576, "cost_per_m_input": 0.40, "cost_per_m_output": 1.60},
-    "gpt-4.1-nano": {"context_window": 1_047_576, "cost_per_m_input": 0.10, "cost_per_m_output": 0.40},
-    "gpt-5": {"context_window": 400_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00},
-    "gpt-5-mini": {"context_window": 400_000, "cost_per_m_input": 0.25, "cost_per_m_output": 2.00},
-    "gpt-5.1": {"context_window": 400_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00},
-    "gpt-5.2": {"context_window": 400_000, "cost_per_m_input": 1.75, "cost_per_m_output": 14.00},
-    "gpt-4o": {"context_window": 128_000, "cost_per_m_input": 2.50, "cost_per_m_output": 10.00},
-    "gpt-4o-mini": {"context_window": 128_000, "cost_per_m_input": 0.15, "cost_per_m_output": 0.60},
-    "o3": {"context_window": 200_000, "cost_per_m_input": 2.00, "cost_per_m_output": 8.00},
-    "o3-mini": {"context_window": 200_000, "cost_per_m_input": 1.10, "cost_per_m_output": 4.40},
-    "o4-mini": {"context_window": 200_000, "cost_per_m_input": 1.10, "cost_per_m_output": 4.40},
-    "openai-codex/gpt-5.3-codex": {"context_window": 400_000, "cost_per_m_input": 1.75, "cost_per_m_output": 14.00},
+    "gpt-4.1": {"context_window": 1_047_576, "cost_per_m_input": 2.00, "cost_per_m_output": 8.00, "has_vision": True},
+    "gpt-4.1-mini": {"context_window": 1_047_576, "cost_per_m_input": 0.40, "cost_per_m_output": 1.60, "has_vision": True},
+    "gpt-4.1-nano": {"context_window": 1_047_576, "cost_per_m_input": 0.10, "cost_per_m_output": 0.40, "has_vision": True},
+    "gpt-5": {"context_window": 400_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00, "has_vision": True},
+    "gpt-5-mini": {"context_window": 400_000, "cost_per_m_input": 0.25, "cost_per_m_output": 2.00, "has_vision": True},
+    "gpt-5.1": {"context_window": 400_000, "cost_per_m_input": 1.25, "cost_per_m_output": 10.00, "has_vision": True},
+    "gpt-5.2": {"context_window": 400_000, "cost_per_m_input": 1.75, "cost_per_m_output": 14.00, "has_vision": True},
+    "gpt-4o": {"context_window": 128_000, "cost_per_m_input": 2.50, "cost_per_m_output": 10.00, "has_vision": True},
+    "gpt-4o-mini": {"context_window": 128_000, "cost_per_m_input": 0.15, "cost_per_m_output": 0.60, "has_vision": True},
+    "o3": {"context_window": 200_000, "cost_per_m_input": 2.00, "cost_per_m_output": 8.00, "has_vision": True},
+    "o3-mini": {"context_window": 200_000, "cost_per_m_input": 1.10, "cost_per_m_output": 4.40, "has_vision": True},
+    "o4-mini": {"context_window": 200_000, "cost_per_m_input": 1.10, "cost_per_m_output": 4.40, "has_vision": True},
+    "openai-codex/gpt-5.3-codex": {"context_window": 400_000, "cost_per_m_input": 1.75, "cost_per_m_output": 14.00, "has_vision": False},
     # Anthropic
-    "claude-opus-4-6-20250918": {"context_window": 200_000, "cost_per_m_input": 5.00, "cost_per_m_output": 25.00},
-    "claude-sonnet-4-5-20250929": {"context_window": 200_000, "cost_per_m_input": 3.00, "cost_per_m_output": 15.00},
-    "claude-haiku-4-5-20251001": {"context_window": 200_000, "cost_per_m_input": 1.00, "cost_per_m_output": 5.00},
-    "claude-opus-4-20250514": {"context_window": 200_000, "cost_per_m_input": 5.00, "cost_per_m_output": 25.00},
-    "claude-sonnet-4-20250514": {"context_window": 200_000, "cost_per_m_input": 3.00, "cost_per_m_output": 15.00},
-    "claude-haiku-4-20250514": {"context_window": 200_000, "cost_per_m_input": 1.00, "cost_per_m_output": 5.00},
+    "claude-opus-4-6-20250918": {"context_window": 200_000, "cost_per_m_input": 5.00, "cost_per_m_output": 25.00, "has_vision": True},
+    "claude-sonnet-4-5-20250929": {"context_window": 200_000, "cost_per_m_input": 3.00, "cost_per_m_output": 15.00, "has_vision": True},
+    "claude-haiku-4-5-20251001": {"context_window": 200_000, "cost_per_m_input": 1.00, "cost_per_m_output": 5.00, "has_vision": True},
+    "claude-opus-4-20250514": {"context_window": 200_000, "cost_per_m_input": 5.00, "cost_per_m_output": 25.00, "has_vision": True},
+    "claude-sonnet-4-20250514": {"context_window": 200_000, "cost_per_m_input": 3.00, "cost_per_m_output": 15.00, "has_vision": True},
+    "claude-haiku-4-20250514": {"context_window": 200_000, "cost_per_m_input": 1.00, "cost_per_m_output": 5.00, "has_vision": True},
     # DeepSeek
-    "deepseek/deepseek-chat": {"context_window": 128_000, "cost_per_m_input": 0.28, "cost_per_m_output": 0.42},
-    "deepseek/deepseek-reasoner": {"context_window": 128_000, "cost_per_m_input": 0.28, "cost_per_m_output": 0.42},
+    "deepseek/deepseek-chat": {"context_window": 128_000, "cost_per_m_input": 0.28, "cost_per_m_output": 0.42, "has_vision": False},
+    "deepseek/deepseek-reasoner": {"context_window": 128_000, "cost_per_m_input": 0.28, "cost_per_m_output": 0.42, "has_vision": False},
     # Ollama (local, no cost, context varies by model)
-    "ollama/llama3.1:8b": {"context_window": 128_000, "cost_per_m_input": 0, "cost_per_m_output": 0},
-    "ollama/qwen3:32b": {"context_window": 128_000, "cost_per_m_input": 0, "cost_per_m_output": 0},
+    "ollama/llama3.1:8b": {"context_window": 128_000, "cost_per_m_input": 0, "cost_per_m_output": 0, "has_vision": False},
+    "ollama/qwen3:32b": {"context_window": 128_000, "cost_per_m_input": 0, "cost_per_m_output": 0, "has_vision": False},
 }
 
 # ---------------------------------------------------------------------------
@@ -290,6 +290,36 @@ def get_context_window(model: str) -> Optional[int]:
     return info["context_window"] if info else None
 
 
+def has_vision(model: str) -> bool:
+    """Return True if the model supports vision/image inputs."""
+    info = MODEL_REGISTRY.get(model)
+    if info is None:
+        return False
+    return info.get("has_vision", False)
+
+
+# ---------------------------------------------------------------------------
+# Vision / image detection
+# ---------------------------------------------------------------------------
+
+def detect_images(messages: List[Any]) -> Dict[str, Any]:
+    """Detect if any messages contain image content (image_url or image parts).
+
+    Returns {"has_images": bool, "image_count": int}.
+    """
+    image_count = 0
+    for m in messages:
+        content = getattr(m, "content", None)
+        if not isinstance(content, list):
+            continue
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") in ("image_url", "image"):
+                image_count += 1
+    return {"has_images": image_count > 0, "image_count": image_count}
+
+
 # ---------------------------------------------------------------------------
 # Session persistence
 # ---------------------------------------------------------------------------
@@ -477,6 +507,27 @@ def apply_routing_modifiers(
                 "Reasoning override: → %s (markers=%d: %s)",
                 target, reasoning["marker_count"], reasoning["markers"],
             )
+
+    # --- Vision detection ---
+    if request_meta.get("has_images", False) and not has_vision(final_model):
+        for candidate in [complex_model, simple_model]:
+            if has_vision(candidate):
+                routing_info["modifiers_applied"].append(
+                    f"vision_swap({final_model}\u2192{candidate})"
+                )
+                logger.info(
+                    "Vision swap: %s (no vision) \u2192 %s (vision-capable)",
+                    final_model, candidate,
+                )
+                final_model = candidate
+                break
+        else:
+            logger.warning(
+                "Vision request but no vision-capable model in tiers. "
+                "Proceeding with %s.", final_model,
+            )
+    if request_meta.get("has_images", False):
+        routing_info["has_images"] = True
 
     # --- Context window check ---
     if not check_context_window(final_model, messages):

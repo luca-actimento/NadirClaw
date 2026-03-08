@@ -220,6 +220,9 @@ def _extract_request_metadata(request: ChatCompletionRequest) -> Dict[str, Any]:
 
     system_text = " ".join(m.text_content() for m in system_msgs) if has_system else ""
 
+    from nadirclaw.routing import detect_images
+    image_info = detect_images(messages)
+
     return {
         "stream": bool(request.stream),
         "message_count": len(messages),
@@ -229,6 +232,8 @@ def _extract_request_metadata(request: ChatCompletionRequest) -> Dict[str, Any]:
         "has_tools": tool_count > 0,
         "tool_count": tool_count,
         "requested_model": request.model,
+        "has_images": image_info["has_images"],
+        "image_count": image_info["image_count"],
     }
 
 
@@ -638,10 +643,13 @@ async def _call_litellm(
     # Preserve full message structure (tool_calls, tool_call_id, name, etc.)
     messages = []
     for message in request.messages:
-        # Use text_content() for readable text, but preserve None for
-        # tool-calling assistant messages (OpenAI/Anthropic require null).
-        text = message.text_content()
-        msg: dict[str, Any] = {"role": message.role, "content": text if text else message.content}
+        # Preserve multimodal content arrays (image_url parts) as-is.
+        if isinstance(message.content, list):
+            content = message.content
+        else:
+            text = message.text_content()
+            content = text if text else message.content
+        msg: dict[str, Any] = {"role": message.role, "content": content}
         extra_fields = message.model_extra or {}
         if "tool_calls" in extra_fields:
             msg["tool_calls"] = extra_fields["tool_calls"]
@@ -1342,8 +1350,12 @@ async def _stream_litellm(
 
     messages = []
     for message in request.messages:
-        text = message.text_content()
-        msg: dict[str, Any] = {"role": message.role, "content": text if text else message.content}
+        if isinstance(message.content, list):
+            content = message.content
+        else:
+            text = message.text_content()
+            content = text if text else message.content
+        msg: dict[str, Any] = {"role": message.role, "content": content}
         extra_fields = message.model_extra or {}
         if "tool_calls" in extra_fields:
             msg["tool_calls"] = extra_fields["tool_calls"]

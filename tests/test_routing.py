@@ -10,9 +10,11 @@ from nadirclaw.routing import (
     apply_routing_modifiers,
     check_context_window,
     detect_agentic,
+    detect_images,
     detect_reasoning,
     estimate_cost,
     estimate_token_count,
+    has_vision,
     resolve_alias,
     resolve_profile,
 )
@@ -413,3 +415,134 @@ class TestApplyRoutingModifiers:
         )
         assert model == "gemini-2.5-pro"
         assert any("context_window_swap" in m for m in info["modifiers_applied"])
+
+
+# ---------------------------------------------------------------------------
+# detect_images
+# ---------------------------------------------------------------------------
+
+def _multimodal_msg(role, text="", image_urls=None):
+    """Helper to create a message with multimodal content array."""
+    content = []
+    if text:
+        content.append({"type": "text", "text": text})
+    for url in (image_urls or []):
+        content.append({"type": "image_url", "image_url": {"url": url}})
+    ns = SimpleNamespace(role=role, content=content)
+    ns.text_content = lambda: text
+    return ns
+
+
+class TestDetectImages:
+    def test_no_images(self):
+        messages = [_msg("user", "What is 2+2?")]
+        result = detect_images(messages)
+        assert result["has_images"] is False
+        assert result["image_count"] == 0
+
+    def test_single_image(self):
+        messages = [_multimodal_msg("user", "What's in this?", ["https://example.com/img.png"])]
+        result = detect_images(messages)
+        assert result["has_images"] is True
+        assert result["image_count"] == 1
+
+    def test_multiple_images(self):
+        messages = [_multimodal_msg("user", "Compare these", [
+            "https://example.com/a.png",
+            "https://example.com/b.png",
+        ])]
+        result = detect_images(messages)
+        assert result["has_images"] is True
+        assert result["image_count"] == 2
+
+    def test_base64_image(self):
+        msg = SimpleNamespace(
+            role="user",
+            content=[
+                {"type": "text", "text": "What's this?"},
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBOR..."}},
+            ],
+        )
+        msg.text_content = lambda: "What's this?"
+        result = detect_images([msg])
+        assert result["has_images"] is True
+        assert result["image_count"] == 1
+
+    def test_text_only_multimodal(self):
+        msg = SimpleNamespace(
+            role="user",
+            content=[{"type": "text", "text": "Hello"}],
+        )
+        msg.text_content = lambda: "Hello"
+        result = detect_images([msg])
+        assert result["has_images"] is False
+
+
+# ---------------------------------------------------------------------------
+# has_vision
+# ---------------------------------------------------------------------------
+
+class TestHasVision:
+    def test_vision_models(self):
+        assert has_vision("gpt-4o") is True
+        assert has_vision("claude-sonnet-4-5-20250929") is True
+        assert has_vision("gemini-2.5-pro") is True
+
+    def test_non_vision_models(self):
+        assert has_vision("deepseek/deepseek-chat") is False
+        assert has_vision("ollama/llama3.1:8b") is False
+        assert has_vision("openai-codex/gpt-5.3-codex") is False
+
+    def test_unknown_model(self):
+        assert has_vision("unknown-model-xyz") is False
+
+
+# ---------------------------------------------------------------------------
+# Vision routing modifier
+# ---------------------------------------------------------------------------
+
+class TestVisionModifier:
+    def test_vision_swap_from_non_vision_model(self):
+        """Non-vision model gets swapped when images are present."""
+        messages = [_msg("user", "Describe this image")]
+        meta = {
+            "has_tools": False, "tool_count": 0,
+            "system_prompt_text": "", "system_prompt_length": 0,
+            "message_count": 1, "has_images": True,
+        }
+        model, tier, info = apply_routing_modifiers(
+            "deepseek/deepseek-chat", "simple", meta, messages,
+            "deepseek/deepseek-chat", "gpt-4o",
+        )
+        assert model == "gpt-4o"
+        assert any("vision_swap" in m for m in info["modifiers_applied"])
+
+    def test_no_swap_when_model_has_vision(self):
+        """Vision-capable model stays as-is."""
+        messages = [_msg("user", "Describe this image")]
+        meta = {
+            "has_tools": False, "tool_count": 0,
+            "system_prompt_text": "", "system_prompt_length": 0,
+            "message_count": 1, "has_images": True,
+        }
+        model, tier, info = apply_routing_modifiers(
+            "gpt-4o", "complex", meta, messages,
+            "gemini-2.5-flash", "gpt-4o",
+        )
+        assert model == "gpt-4o"
+        assert not any("vision_swap" in m for m in info["modifiers_applied"])
+
+    def test_no_swap_when_no_images(self):
+        """No images means no vision routing."""
+        messages = [_msg("user", "Hello")]
+        meta = {
+            "has_tools": False, "tool_count": 0,
+            "system_prompt_text": "", "system_prompt_length": 0,
+            "message_count": 1, "has_images": False,
+        }
+        model, tier, info = apply_routing_modifiers(
+            "deepseek/deepseek-chat", "simple", meta, messages,
+            "deepseek/deepseek-chat", "gpt-4o",
+        )
+        assert model == "deepseek/deepseek-chat"
+        assert not any("vision_swap" in m for m in info["modifiers_applied"])

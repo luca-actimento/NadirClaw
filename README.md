@@ -86,6 +86,7 @@ That's it. NadirClaw starts on `http://localhost:8856` with sensible defaults (G
 - **Smart routing** — classifies prompts in ~10ms using sentence embeddings
 - **Agentic task detection** — auto-detects tool use, multi-step loops, and agent system prompts; forces complex model for agentic requests
 - **Reasoning detection** — identifies prompts needing chain-of-thought and routes to reasoning-optimized models
+- **Vision routing** — auto-detects image content in messages and routes to vision-capable models (GPT-4o, Claude, Gemini)
 - **Routing profiles** — `auto`, `eco`, `premium`, `free`, `reasoning` — choose your cost/quality strategy per request
 - **Model aliases** — use short names like `sonnet`, `flash`, `gpt4` instead of full model IDs
 - **Session persistence** — pins the model for multi-turn conversations so you don't bounce between models mid-thread
@@ -605,6 +606,10 @@ Prompts with 2+ reasoning markers are routed to the reasoning model (or complex 
 - "analyze the tradeoffs", "compare and contrast"
 - "critically analyze", "evaluate whether"
 
+### Vision Routing
+
+NadirClaw detects when messages contain images (`image_url` content parts, including base64-encoded images) and automatically routes to a vision-capable model. If the classifier picks a text-only model (e.g., DeepSeek, Ollama), NadirClaw swaps to a vision-capable alternative from your configured tiers.
+
 ### Session Persistence
 
 Once a conversation is routed to a model, subsequent messages in the same session reuse that model. This prevents jarring mid-conversation model switches. Sessions are keyed by system prompt + first user message, with a 30-minute TTL.
@@ -850,6 +855,7 @@ NadirClaw uses a binary complexity classifier based on sentence embeddings:
 4. **Routing modifiers**: After classification, NadirClaw applies intelligent overrides:
    - **Agentic detection** — if tool definitions, tool-role messages, or agent system prompts are detected, forces the complex model
    - **Reasoning detection** — if 2+ reasoning markers are found, routes to the reasoning model
+   - **Vision routing** — if image content is detected, swaps to a vision-capable model
    - **Context window check** — if the conversation exceeds the model's context window, swaps to a model that fits
    - **Session persistence** — reuses the same model for follow-up messages in the same conversation
 
@@ -938,6 +944,7 @@ Based on 10,000+ production prompts:
 **Auto-upgraded to complex:**
 - Agentic requests with tool definitions
 - Prompts with 2+ reasoning markers
+- Requests containing images (vision routing)
 - Long conversations (>10 turns)
 - Requests exceeding the simple model's context window
 
@@ -1060,7 +1067,7 @@ nadirclaw/
   credentials.py     # Credential storage, resolution chain, and OAuth token refresh
   encoder.py         # Shared SentenceTransformer singleton
   oauth.py           # OAuth login flows (OpenAI, Anthropic, Gemini, Antigravity)
-  routing.py         # Routing intelligence (agentic, reasoning, profiles, aliases, sessions)
+  routing.py         # Routing intelligence (agentic, reasoning, vision, profiles, aliases, sessions)
   report.py          # Log parsing and report generation
   metrics.py         # Built-in Prometheus metrics (zero dependencies)
   rate_limit.py      # Per-model rate limiting (sliding window, env-configurable)
