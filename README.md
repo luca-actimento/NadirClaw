@@ -354,6 +354,30 @@ Manual configuration is still supported via the `OLLAMA_API_BASE` environment va
 OLLAMA_API_BASE=http://192.168.1.100:11434 nadirclaw serve
 ```
 
+## Usage with Custom OpenAI-Compatible Endpoints
+
+NadirClaw works with any OpenAI-compatible API server — vLLM, LocalAI, LM Studio, text-generation-inference, or any custom endpoint:
+
+```bash
+# Point NadirClaw at your custom endpoint
+NADIRCLAW_API_BASE=http://your-server:8000/v1 \
+NADIRCLAW_SIMPLE_MODEL=openai/your-small-model \
+NADIRCLAW_COMPLEX_MODEL=openai/your-large-model \
+nadirclaw serve --verbose
+```
+
+Use the `openai/` prefix on model names so LiteLLM routes them as OpenAI-compatible. `NADIRCLAW_API_BASE` is passed to all non-Ollama, non-Gemini LiteLLM calls.
+
+You can also mix custom endpoints with cloud providers:
+
+```bash
+# Local model for simple, cloud for complex
+NADIRCLAW_API_BASE=http://localhost:8000/v1 \
+NADIRCLAW_SIMPLE_MODEL=openai/local-llama \
+NADIRCLAW_COMPLEX_MODEL=claude-sonnet-4-5-20250929 \
+nadirclaw serve
+```
+
 ## Usage with OpenClaw
 
 [OpenClaw](https://openclaw.dev) is a personal AI assistant that bridges messaging services to AI coding agents. NadirClaw integrates as a model provider so OpenClaw's requests are automatically routed to the right model.
@@ -996,6 +1020,7 @@ Auth is disabled by default (local-only). Set `NADIRCLAW_AUTH_TOKEN` to require 
 | `GEMINI_API_KEY` | -- | Google Gemini API key (also accepts `GOOGLE_API_KEY`) |
 | `ANTHROPIC_API_KEY` | -- | Anthropic API key |
 | `OPENAI_API_KEY` | -- | OpenAI API key |
+| `NADIRCLAW_API_BASE` | *(empty — disabled)* | Custom base URL for OpenAI-compatible endpoints (vLLM, LocalAI, LM Studio, etc.) |
 | `OLLAMA_API_BASE` | `http://localhost:11434` | Ollama base URL |
 | `NADIRCLAW_CONFIDENCE_THRESHOLD` | `0.06` | Classification threshold (lower = more complex) |
 | `NADIRCLAW_PORT` | `8856` | Server port |

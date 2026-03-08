@@ -65,6 +65,14 @@ class Settings:
         return os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
 
     @property
+    def API_BASE(self) -> str:
+        """Custom base URL for OpenAI-compatible endpoints (vLLM, LocalAI, etc.).
+
+        When set, passed as api_base to all non-Ollama, non-Gemini LiteLLM calls.
+        """
+        return os.getenv("NADIRCLAW_API_BASE", "")
+
+    @property
     def CONFIDENCE_THRESHOLD(self) -> float:
         return float(os.getenv("NADIRCLAW_CONFIDENCE_THRESHOLD", "0.06"))
 

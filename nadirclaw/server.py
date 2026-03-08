@@ -279,6 +279,8 @@ async def startup():
         else:
             logger.info("Tier config:   derived from NADIRCLAW_MODELS")
         logger.info("Ollama base:   %s", settings.OLLAMA_API_BASE)
+        if settings.API_BASE:
+            logger.info("API base:      %s", settings.API_BASE)
         token = settings.AUTH_TOKEN
         if token:
             logger.info("Auth:          %s***", token[:6] if len(token) >= 6 else token)
@@ -750,9 +752,11 @@ async def _call_litellm(
             else:
                 call_kwargs["api_key"] = api_key
 
-    # Pass api_base for Ollama models so LiteLLM reaches the right host
+    # Pass api_base for Ollama or custom OpenAI-compatible endpoints
     if litellm_model.startswith("ollama/") or litellm_model.startswith("ollama_chat/"):
         call_kwargs["api_base"] = settings.OLLAMA_API_BASE
+    elif settings.API_BASE and "api_base" not in call_kwargs:
+        call_kwargs["api_base"] = settings.API_BASE
 
     logger.debug("Calling LiteLLM: model=%s (provider=%s)", litellm_model, provider)
     try:
@@ -1386,6 +1390,8 @@ async def _stream_litellm(
 
     if litellm_model.startswith("ollama/") or litellm_model.startswith("ollama_chat/"):
         call_kwargs["api_base"] = settings.OLLAMA_API_BASE
+    elif settings.API_BASE and "api_base" not in call_kwargs:
+        call_kwargs["api_base"] = settings.API_BASE
 
     try:
         response = await litellm.acompletion(**call_kwargs)
