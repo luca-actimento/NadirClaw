@@ -121,6 +121,7 @@ class TestFallbackChainBehavior:
         with patch("nadirclaw.server._dispatch_model", side_effect=mock_dispatch):
             with patch("nadirclaw.server.settings") as mock_settings:
                 mock_settings.FALLBACK_CHAIN = ["model-primary", "model-backup"]
+                mock_settings.get_tier_fallback_chain.return_value = ["model-primary", "model-backup"]
                 response, actual_model, updated_info = await _call_with_fallback(
                     "model-primary", request, None, analysis_info
                 )
@@ -166,6 +167,7 @@ class TestFallbackChainBehavior:
         with patch("nadirclaw.server._dispatch_model", side_effect=mock_dispatch):
             with patch("nadirclaw.server.settings") as mock_settings:
                 mock_settings.FALLBACK_CHAIN = ["m1", "m2", "m3", "m4"]
+                mock_settings.get_tier_fallback_chain.return_value = ["m1", "m2", "m3", "m4"]
                 response, actual_model, updated_info = await _call_with_fallback(
                     "m1", request, None, analysis_info
                 )
@@ -200,6 +202,7 @@ class TestFallbackChainBehavior:
         with patch("nadirclaw.server._dispatch_model", side_effect=mock_dispatch):
             with patch("nadirclaw.server.settings") as mock_settings:
                 mock_settings.FALLBACK_CHAIN = ["m1", "m2"]
+                mock_settings.get_tier_fallback_chain.return_value = ["m1", "m2"]
                 response, actual_model, updated_info = await _call_with_fallback(
                     "m1", request, None, analysis_info
                 )
@@ -234,6 +237,7 @@ class TestFallbackChainBehavior:
         with patch("nadirclaw.server._dispatch_model", side_effect=mock_dispatch):
             with patch("nadirclaw.server.settings") as mock_settings:
                 mock_settings.FALLBACK_CHAIN = ["model-only"]
+                mock_settings.get_tier_fallback_chain.return_value = ["model-only"]
                 response, actual_model, updated_info = await _call_with_fallback(
                     "model-only", request, None, analysis_info
                 )

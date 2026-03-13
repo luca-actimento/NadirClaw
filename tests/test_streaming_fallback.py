@@ -81,6 +81,7 @@ class TestStreamWithFallback:
     async def test_pre_content_fallback(self, mock_settings, mock_dispatch):
         """If primary fails before content, falls back to next model."""
         mock_settings.FALLBACK_CHAIN = ["model-b"]
+        mock_settings.get_tier_fallback_chain.return_value = ["model-b"]
 
         call_count = 0
 
@@ -120,6 +121,7 @@ class TestStreamWithFallback:
     async def test_mid_stream_failure(self, mock_settings, mock_dispatch):
         """If model fails mid-stream, adds error notice and stops (can't restart)."""
         mock_settings.FALLBACK_CHAIN = ["model-b"]
+        mock_settings.get_tier_fallback_chain.return_value = ["model-b"]
 
         async def _failing_stream(model, request, provider):
             yield {"role": "assistant", "content": "Starting..."}, None, None
@@ -152,6 +154,7 @@ class TestStreamWithFallback:
     async def test_all_models_exhausted(self, mock_settings, mock_dispatch):
         """If all models fail pre-content, yields an error message."""
         mock_settings.FALLBACK_CHAIN = ["model-b"]
+        mock_settings.get_tier_fallback_chain.return_value = ["model-b"]
 
         async def _always_fail(model, request, provider):
             raise RateLimitExhausted(model=model, retry_after=60)
@@ -185,6 +188,7 @@ class TestStreamWithFallback:
     async def test_no_fallback_chain(self, mock_settings, mock_dispatch):
         """If no fallback chain and primary fails, yields error."""
         mock_settings.FALLBACK_CHAIN = []
+        mock_settings.get_tier_fallback_chain.return_value = []
 
         async def _fail(model, request, provider):
             raise RateLimitExhausted(model=model, retry_after=60)
