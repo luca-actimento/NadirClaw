@@ -1,6 +1,7 @@
 """Tests for nadirclaw.server — health endpoint and basic API contract."""
 
 import pytest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 
@@ -63,3 +64,67 @@ class TestClassifyEndpoint:
         data = resp.json()
         assert data["total"] == 2
         assert len(data["results"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# X-Routed-* response headers
+# ---------------------------------------------------------------------------
+
+def _mock_fallback(content="OK", prompt_tokens=10, completion_tokens=5, model=None):
+    """Build a side_effect callable for patching _call_with_fallback."""
+    async def _side_effect(selected_model, request, provider, analysis_info):
+        actual_model = model or selected_model
+        return (
+            {
+                "content": content,
+                "finish_reason": "stop",
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+            },
+            actual_model,
+            {**analysis_info, "selected_model": actual_model},
+        )
+    return _side_effect
+
+
+class TestRoutingHeaders:
+    """X-Routed-Model, X-Routed-Tier, X-Complexity-Score headers."""
+
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_non_streaming_response_has_routing_headers(self, mock_fb, client):
+        mock_fb.side_effect = _mock_fallback(content="hi")
+        resp = client.post("/v1/chat/completions", json={
+            "messages": [{"role": "user", "content": "routing header test 8x2q"}],
+        })
+        assert resp.status_code == 200
+        assert "X-Routed-Model" in resp.headers
+        assert resp.headers["X-Routed-Model"] != ""
+        assert "X-Routed-Tier" in resp.headers
+        assert resp.headers["X-Routed-Tier"] in ("simple", "mid", "complex", "reasoning", "direct", "free")
+        assert "X-Complexity-Score" in resp.headers
+
+    @patch("nadirclaw.server._call_with_fallback")
+    def test_direct_model_has_routing_headers(self, mock_fb, client):
+        mock_fb.side_effect = _mock_fallback(content="hi", model="gpt-4o")
+        resp = client.post("/v1/chat/completions", json={
+            "messages": [{"role": "user", "content": "direct model header test 3v7w"}],
+            "model": "gpt-4o",
+        })
+        assert resp.status_code == 200
+        assert resp.headers["X-Routed-Model"] == "gpt-4o"
+        assert resp.headers["X-Routed-Tier"] == "direct"
+
+    @patch("nadirclaw.server._stream_with_fallback")
+    def test_streaming_response_has_routing_headers(self, mock_stream, client):
+        async def _fake_stream(*args, **kwargs):
+            yield 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'
+            yield "data: [DONE]\n\n"
+        mock_stream.return_value = _fake_stream()
+        resp = client.post("/v1/chat/completions", json={
+            "messages": [{"role": "user", "content": "streaming header test 5k9z"}],
+            "stream": True,
+        })
+        assert resp.status_code == 200
+        assert "X-Routed-Model" in resp.headers
+        assert "X-Routed-Tier" in resp.headers
+        assert "X-Complexity-Score" in resp.headers

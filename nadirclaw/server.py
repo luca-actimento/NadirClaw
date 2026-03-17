@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -91,12 +91,15 @@ app = FastAPI(
 from nadirclaw.web_dashboard import router as dashboard_router
 app.include_router(dashboard_router)
 
+_ROUTING_HEADERS = ("X-Routed-Model", "X-Routed-Tier", "X-Complexity-Score")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=list(_ROUTING_HEADERS),
 )
 
 
@@ -927,9 +930,19 @@ def _rate_limit_error_response(model: str) -> Dict[str, Any]:
 # /v1/chat/completions — full completion with routing
 # ---------------------------------------------------------------------------
 
+def _routing_headers(model: str, analysis_info: Dict[str, Any]) -> Dict[str, str]:
+    """Build X-Routed-* headers from routing analysis."""
+    return {
+        "X-Routed-Model": model,
+        "X-Routed-Tier": str(analysis_info.get("tier", "")),
+        "X-Complexity-Score": str(analysis_info.get("complexity_score", "")),
+    }
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(
     request: ChatCompletionRequest,
+    response: Response,
     current_user: UserSession = Depends(validate_local_auth),
 ):
     # --- Rate limiting (per user) ---
@@ -1138,7 +1151,11 @@ async def chat_completions(
                     **_stream_req_meta,
                 })
 
-            return EventSourceResponse(_true_stream_wrapper(), media_type="text/event-stream")
+            return EventSourceResponse(
+                _true_stream_wrapper(),
+                media_type="text/event-stream",
+                headers=_routing_headers(selected_model, analysis_info),
+            )
 
         # ------------------------------------------------------------------
         # Call model — with automatic fallback on rate limit
@@ -1222,6 +1239,9 @@ async def chat_completions(
         # ------------------------------------------------------------------
         # Non-streaming response (regular JSON)
         # ------------------------------------------------------------------
+        for hdr_name, hdr_val in _routing_headers(selected_model, analysis_info).items():
+            response.headers[hdr_name] = hdr_val
+
         message: dict[str, Any] = {
             "role": "assistant",
             "content": response_data["content"],
@@ -1337,7 +1357,11 @@ def _build_streaming_response(
         # Final: [DONE] sentinel
         yield {"data": "[DONE]"}
 
-    return EventSourceResponse(event_generator(), media_type="text/event-stream")
+    return EventSourceResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers=_routing_headers(model, analysis_info),
+    )
 
 
 # ---------------------------------------------------------------------------
