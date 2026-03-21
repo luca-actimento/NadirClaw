@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "nadirclaw",
+  "log_files": [],
+  "health_urls": [],
+  "auto_fix_classes": [
+    "MODULE_NOT_FOUND",
+    "ENOENT",
+    "CONFIG_MISSING",
+    "SYNTAX_ERROR",
+    "TYPE_ERROR_SIMPLE"
+  ],
+  "context_files": [
+    "CLAUDE.md"
+  ]
+}
