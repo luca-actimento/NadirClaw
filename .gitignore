@@ -38,3 +38,15 @@ logs/
 credentials.json
 # Agent work directories
 .smartkanban/
+.ralph/
+.ralphrc
+
+# GSD Session State (nicht einchecken)
+.planning/.continue-here.md
+.planning/.compact-state.md
+.planning/.context-backup-*
+.planning/CLAUDE.md
+.planning/PROJECT.md
+CODEBASE-MAP.md
+MASTERPLAN-DIGEST.md
+PLAN.md
