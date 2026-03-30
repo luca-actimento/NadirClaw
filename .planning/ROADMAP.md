@@ -1,21 +1,27 @@
 # Roadmap — nadirclaw
 
-## Milestone: MVP Router
+> Milestone: MVP Router for Actimento Ecosystem
 
-### Phase 1: Anforderungen & Design
-**Goal:** Klarer Scope, API-Design, Routing-Logik definieren.
-**Scope:**
-- Routing-Strategie: welche Metriken → welches Model (Komplexität, Token-Count, Kontext)
-- API-Design: POST /route → {model, reason}
-- Unterstützte Provider: Ollama (lokal), Claude, Gemini, OpenAI
+## Phases
 
-### Phase 2: Core Router
-**Goal:** Minimaler funktionierender Router.
-**Scope:**
-- FastAPI oder Flask Endpunkt
-- Heuristic-Router: kurz/einfach → Ollama, lang/komplex → Claude
-- Config: thresholds per ENV-Var
+| # | Phase | Status | Effort | Description |
+|---|-------|--------|--------|-------------|
+| 01 | Local Setup & Validation | TODO | Small | Get NadirClaw running locally, verify fork works E2E |
+| 02 | Provider Health-Aware Routing | TODO | Medium | Error tracking, auto-downgrade, health visibility |
+| 03 | Claude-Setup Integration | TODO | Medium | Tier mapping, SQLite cache, /v1/route endpoint |
+| 04 | Analytics & Feedback | TODO | Medium | Cost attribution, routing feedback loop, Grafana |
+| 05 | Production-Ready (v1.0) | TODO | Large | Stable API, custom training, integration tests, LaunchAgent |
 
-### Phase 3: Claude-Setup Integration
-**Goal:** matrix-claude + agents-admin nutzen nadirclaw als Router.
-**Scope:** HTTP-Call zu nadirclaw statt direktem Provider-Aufruf
+## Dependencies
+
+- Phase 01 must complete before any other phase (need working local setup)
+- Phase 02 and 03 can run in parallel after Phase 01
+- Phase 04 depends on Phase 03 (needs per-project tagging from integration)
+- Phase 05 depends on all previous phases
+
+## Key Decisions
+
+- Port 8856 (NadirClaw default)
+- LiteLLM as provider abstraction layer
+- Embedding-based classifier (no API calls for classification)
+- SQLite for persistence (no external DB dependency)
