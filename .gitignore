@@ -50,3 +50,8 @@ credentials.json
 CODEBASE-MAP.md
 MASTERPLAN-DIGEST.md
 PLAN.md
+
+# Auto-added by self-improve-engine
+*.pyc
+node_modules/
+.env.local
